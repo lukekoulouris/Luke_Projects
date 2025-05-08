@@ -1,0 +1,133 @@
+\documentclass{beamer}
+\usepackage{amsmath, amssymb, mathtools}
+\usepackage{graphicx}
+\usepackage[utf8]{inputenc}
+
+% Choose a theme
+\usetheme{CambridgeUS}
+%\usetheme{AnnArbor}
+%\usetheme{CambridgeUS}
+
+\title{\textbf{Income Tax Cuts and Labor}}
+\subtitle{Predictions for the KEEP Act and Other Overtime Tax Reform}
+\author{Luke Koulouris}
+\date{May 2025}
+\institute{Miami University}
+
+\begin{document}
+
+\maketitle
+
+\begin{frame}{\textbf{Agenda}}
+\begin{enumerate}
+    \item Broad income tax cuts
+    \item Overtime tax cuts
+    \item Overtime in the US
+    \item Economic theory
+    \item Results from around the world (and the US)
+    \item Conclusion and future research
+\end{enumerate}
+\end{frame}
+
+\begin{frame}{\textbf{Income Tax Cuts}}
+    \begin{itemize}
+        \item Past past presidential administrations have implemented tax cuts as a way to put more money back in the hands of Americans
+        \item While this seems like a good thing, it has lead to \textbf{increased income inequality} and has tended to give \textbf{larger benefits to those at the top of the income distribution}
+        \begin{itemize}
+            \item Those within the bottom quintile of the income distribution receive the lowest tax cuts as a result of the Trump 2017 tax cuts at 0.3\% of after tax income while those within the 95th and 99th percentile receive the largest tax breaks at 3.4\%
+        \end{itemize}
+        \item Not only do tax cuts increase income inequality, it also increases the economic gap between White people and everyone else
+    \end{itemize}
+\end{frame}
+
+\begin{frame}{\textbf{Income Inequality Over Time}}
+\begin{figure}
+    \centering
+    \includegraphics[width=0.65\linewidth]{forbes.jpg}
+    \caption{Source: \textit{Forbes}. Changes in income between the top 10 percent and bottom 90 percent of earners over time}
+    \label{fig:inc_eq}
+\end{figure}
+\end{frame}
+
+\begin{frame}{\textbf{Background}}
+   \begin{itemize}
+   \item Current administration is pushing for no tax on overtime compensation
+    \item Keep Every Extra Penny Act of 2025
+    \begin{itemize}
+        \item No tax on income earned beyond 40 hours per week
+    \end{itemize}
+    \item Other proposed bills to reduce or eliminate taxes on overtime wages include the Overtime Pay tax Relief Act of 2025 and the No tax on Overtime Act
+    \item Exempting overtime from tax is estimated to cost the US between \textbf{\$680 billion and \$1.5 trillion} over a decade
+\end{itemize} 
+\end{frame}
+
+\begin{frame}{\textbf{Overtime in the US}}
+    \begin{itemize}
+        \item Approximately 67\% of salary and hourly employment, or about 97.7 million employees, were \textit{eligible} for overtime under the Fair Labor Standards Act (FSLA)
+        \item Of that 67\%, only about 8\% of hourly and 4\% of salary employees work over 40 hours per week regularly
+    \end{itemize}
+\end{frame}
+
+\begin{frame}{\textbf{No Tax on Overtime}}
+\begin{itemize}
+    \item The US would not be the first place to implement no tax on overtime if the KEEP Act were to be passed
+    \begin{itemize}
+        \item Austria, France, Belgium, Luxembourg, Italy (for a second), and even Alabama have implemented policies regarding taxes on overtime
+    \end{itemize}
+    \item This seems like a great idea, so why isn't there no tax on overtime?
+\end{itemize}   
+\end{frame}
+
+\begin{frame}{\textbf{Economic Theory}}
+\begin{figure}
+    \centering
+    \includegraphics[width=0.65\linewidth]{budget constarint OT.png}
+    \label{fig:enter-label}
+\end{figure}
+\begin{itemize}
+    \item Those who work 40 hours might be induced to work more
+    \item Those who work more than 40 hours might be induced to work less
+\end{itemize}
+\end{frame}
+
+\begin{frame}{\textbf{Results From Around the World}}
+\begin{itemize}
+    \item \textbf{France:} 
+    \begin{itemize}
+        \item Implemented: 2007-2012; 2019-Present
+        \item Limit of apprx. \$8,500 per year (7,500 Euros)
+        \item Findings: There is an increase in overtime hours, but authors believe that it's mostly for tax optimization, rather than an actual increase in overtime hours worked
+    \end{itemize}
+\end{itemize}
+\end{frame}
+
+\begin{frame}{\textbf{OT Hours In France}}
+    \begin{figure}
+        \centering
+        \includegraphics[width=.75\linewidth]{Screenshot 2025-05-05 142303.png}
+        \label{fig:France OT Hours}
+    \end{figure}
+\end{frame}
+
+\begin{frame}{\textbf{Results From Around the World Cont.}}
+\begin{itemize}
+    \item \textbf{Alabama:}
+    \begin{itemize}
+        \item Implemented: January 2024 - June 30, 2025
+        \item There is no limit to the amount of overtime hours
+        \item Findings: 5\% increase in volunteered overtime hours and increases in LFPR, BUT there have been massive decreases in state revenue (obviously) and even greater losses than they predicted
+        \item Projected to cost \$34 million annually and \textbf{ended up costing \$230 million} within its first year
+    \end{itemize}
+\end{itemize}  
+\end{frame}
+
+\begin{frame}{\textbf{Conclusion and Future Research}}\
+\begin{itemize}
+    \item I think that, while well intentioned, an elimination to overtime taxes is \textbf{too costly} to the state/country and the benefits of such policy would be outweighed by the lack of revenue the state/country would be receiving
+    \begin{itemize}
+        \item I would be open to seeing a reduction in overtime tax or limits to the amount of tax exempt hours
+    \end{itemize}
+    \item I think a good way to measure such employment effects in an econometric way would be a synthetic control approach to Alabama, since they are the only state in the US to have implemented such as policy
+\end{itemize}
+\end{frame}
+\end{document}
