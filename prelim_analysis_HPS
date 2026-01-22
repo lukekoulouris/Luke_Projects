@@ -1,0 +1,846 @@
+---
+title: "03_analysis"
+author: "Luke Koulouris"
+date: "2025-10-16"
+output: html_document
+---
+
+## Load Packages
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(dplyr)
+library(tibble)
+library(haven)
+library(readxl)
+library(readr)
+library(ggplot2)
+library(lmtest)
+library(sandwich)
+library(reshape)
+library(tidyverse)
+library(staggered)
+library(fixest)
+library(lubridate)
+library(stargazer)
+```
+
+## Clear workspace and load panel data
+```{r}
+rm(list = ls(all.names = TRUE))
+load("C:/Thesis/Data/hps_panel.RData")
+```
+
+## Filter hps_panel to week 63 and before (because it gets weird after)
+```{r}
+hps_panel <- hps_panel %>%
+  filter(WEEK <= 63)%>%
+  mutate(AGE = year(date_collect) - TBIRTH_YEAR)
+```
+
+
+## Recoding ANXIOUS variable where people either report no anxiety or some level of it
+```{r}
+hps_panel <- hps_panel%>%
+  mutate(ANXIOUS = case_when(
+    ANXIOUS %in% c(-88,-99) ~ NA_real_,
+    ANXIOUS == 1 ~ 0, # not at all
+    ANXIOUS == 2 ~ 1, # several days
+    ANXIOUS == 3 ~ 1, # more than half the days
+    ANXIOUS == 4 ~ 1, # nearly everyday
+    TRUE ~ ANXIOUS
+  ))%>%
+  mutate(MORTCONF = case_when(
+    MORTCONF %in% c(-88,-99) ~ NA_real_,
+    MORTCONF == 1 ~ 1, # No confidence
+    MORTCONF == 2 ~ 0, # Slight confidence
+    MORTCONF == 3 ~ 0, # Moderate confidence
+    MORTCONF == 4 ~ 0, # High confidence
+    MORTCONF == 5 ~ 1, # Payment is/will be deferred
+    TRUE ~ MORTCONF
+  ))
+```
+
+## Recode EXPNS_DIF variable and filter data to week 13 and beyond bc variable doesn't show up before then
+```{r}
+hps_panel_expns_dif <- hps_panel %>%
+  filter(WEEK >= 13) %>%
+  filter(AGE >= 22 & AGE <=80) %>%
+  mutate(EXPNS_DIF = case_when(
+    EXPNS_DIF %in% c(-88, -99) ~ NA_real_,
+    EXPNS_DIF == 1 ~ 0,
+    EXPNS_DIF == 2 ~ 0,
+    EXPNS_DIF == 3 ~ 1,
+    EXPNS_DIF == 4 ~ 1,
+    TRUE ~ EXPNS_DIF
+  ))
+```
+
+## Binning income
+```{r}
+hps_panel <- hps_panel %>%
+  mutate(INCOME = case_when(
+    INCOME == 1 ~ 1,
+    INCOME == 2 ~ 1,
+    INCOME == 3 ~ 1,
+    INCOME == 4 ~ 2,
+    INCOME == 5 ~ 2,
+    INCOME == 6 ~ 2,
+    INCOME == 7 ~ 3,
+    INCOME == 8 ~ 3,
+    TRUE ~ INCOME
+  ))
+```
+
+## Recode PRESCRIPT variable
+```{r}
+hps_panel <- hps_panel %>%
+  mutate(PRESCRIPT = case_when(
+    PRESCRIPT %in% c(-88, -99) ~ NA_real_,
+    PRESCRIPT == 1 ~ 1,
+    PRESCRIPT == 2 ~ 0,
+    TRUE ~ PRESCRIPT
+  ))
+```
+
+## Recode ENERGY Variable
+```{r}
+hps_panel_energy <- hps_panel %>%
+  filter(WEEK >= 34) %>%
+  mutate(ENERGY = case_when(
+    ENERGY %in% c(-88, -99) ~ NA_real_,
+    ENERGY == 1 ~ 1, #Almost every month
+    ENERGY == 2 ~ 0, #Some months
+    ENERGY == 3 ~ 0, #1 or 2 months
+    ENERGY == 4 ~ 0, #Never
+    TRUE ~ ENERGY
+  ))
+```
+
+## Recode 'DOWN' variable
+```{r}
+hps_panel_down <- hps_panel %>%
+  mutate(DOWN = case_when(
+    DOWN %in% c(-88, -99) ~ NA_real_,
+    DOWN == 1 ~ 0, # not at all
+    DOWN == 2 ~ 1, # several days
+    DOWN == 3 ~ 1, # more than half the days
+    DOWN == 4 ~ 1, # nearly everyday,
+    TRUE ~ DOWN
+  ))
+```
+
+## Summary Stats
+```{r}
+# Use tableone - it's designed for this
+library(tableone)
+
+pre_data <- hps_panel %>%
+  filter(is.na(online_legal) | date_collect < online_legal)
+
+# List your variables
+vars <- c("AGE", "TBIRTH_YEAR",  # Continuous
+          "gender", "RRACE", "EEDUC", "MS", 
+           "INCOME")  # Categorical
+
+categorical <- c("gender", "RRACE", "EEDUC", "MS", 
+                "INCOME")
+
+summary_table <- CreateTableOne(
+  vars = vars,
+  data = hps_panel,
+  factorVars = categorical
+)
+
+# Print
+print(summary_table, showAllLevels = TRUE)
+
+```
+
+
+```{r}
+library(modelsummary)
+
+# Automatic summary for all variables
+datasummary_skim(hps_panel)
+
+# Or specify variables and statistics
+datasummary(
+  AGE + TBIRTH_YEAR + 
+  Factor(gender) + Factor(RRACE) + Factor(EEDUC)+Factor(INCOME) ~ 
+  N + Mean + SD + Percent(),
+  data = hps_panel,
+  output = "summary_table.tex"  # or .docx, .html
+)
+```
+
+## EXPNS_DIF twfe
+```{r}
+expnsdif_twfe <- feols(
+  EXPNS_DIF ~ post_inperson| EST_ST + WEEK,
+  data = hps_panel_expns_dif
+)
+
+summary(
+  expnsdif_twfe, 
+  vcov = ~EST_ST 
+)
+```
+
+## Regress ANYWORK onto treatment
+```{r}
+model_twfe1 <- feols(
+  ANYWORK ~ post_inperson| EST_ST + WEEK + gender + INCOME + EEDUC + MS + RRACE,
+  data = hps_panel
+)
+
+summary(
+  model_twfe1, 
+  vcov = ~EST_ST 
+)
+```
+
+## ANXIOUS twfe
+```{r}
+twfe_anxious <- feols(
+  ANXIOUS ~ post_online| EST_ST + WEEK + gender + INCOME,
+  data = hps_panel
+)
+
+summary(
+  twfe_anxious, 
+  vcov = ~EST_ST 
+)
+```
+
+## WORKLOSS twfe
+```{r}
+twfe_workloss <- feols(
+  workloss ~ post_online| EST_ST + WEEK,
+  data = hps_panel
+)
+
+summary(
+  twfe_workloss, 
+  vcov = ~EST_ST 
+)
+```
+
+## twfe ANXIOUS for men
+```{r}
+twfe_anxious_men <- feols(
+  ANXIOUS ~ post_online| EST_ST + WEEK + INCOME + EEDUC + MS + RRACE,
+  data = hps_panel_men
+)
+
+summary(
+  twfe_anxious_men, 
+  vcov = ~EST_ST 
+)
+```
+
+## Plotting ANXIOUS overtime
+```{r}
+hps_panel_plot <- hps_panel %>%
+group_by(WEEK, sports_gambling_legal) %>%
+  summarise(
+    mean_value = mean(ANXIOUS, na.rm = TRUE),
+  .groups = 'drop'
+)
+  
+ggplot(hps_panel_plot, aes(x = WEEK, y = mean_value, color = factor(sports_gambling_legal)), group = factor(sports_gambling_legal))+
+geom_line(linewidth = 1) + 
+  
+scale_color_manual(
+    name = "Treatment Status",
+    values = c("0" = "lightblue", "1" = "pink"), 
+    labels = c("0" = "Control States", "1" = "Legalized States") 
+  ) +
+
+  labs(
+    title = "Mean Anxiety Value Over Time",
+    x = "Week",
+    y = "Mean Anxiety Score"
+  ) +
+  theme_minimal(base_size = 14)
+```
+
+## Plotting difficulty of meeting expenses by week
+```{r}
+hps_panel_plot <- hps_panel_expns_dif %>%
+group_by(WEEK, sports_gambling_legal) %>%
+  summarise(
+    mean_value = mean(EXPNS_DIF, na.rm = TRUE),
+  .groups = 'drop'
+)
+  
+ggplot(hps_panel_plot, aes(x = WEEK, y = mean_value, linetype = factor(sports_gambling_legal)), group = factor(sports_gambling_legal))+
+geom_line(linewidth = 1, color = "black") + 
+  
+scale_linetype_manual(
+    name = "Treatment Status",
+    values = c("0" = "dotted", "1" = "solid"), 
+    labels = c("0" = "Control States", "1" = "Legalized States") 
+  ) +
+  
+  labs(
+    title = "Difficulty of Meeting Expenses",
+    x = "Cycle",
+    y = "Mean Difficulty Score"
+  ) +
+  theme_minimal(base_size = 14)+
+  theme(legend.position = "bottom")
+
+```
+
+## DOWN plot
+```{r}
+hps_panel_plot <- hps_panel_down %>%
+group_by(WEEK, sports_gambling_legal) %>%
+  summarise(
+    mean_value = mean(DOWN, na.rm = TRUE),
+  .groups = 'drop'
+)
+  
+ggplot(hps_panel_plot, aes(x = WEEK, y = mean_value, linetype = factor(sports_gambling_legal)), group = factor(sports_gambling_legal))+
+geom_line(linewidth = 1, color = "black") + 
+  
+scale_linetype_manual(
+    name = "Treatment Status",
+    values = c("0" = "dotted", "1" = "solid"), 
+    labels = c("0" = "Control States", "1" = "Legalized States") 
+  ) +
+  
+  labs(
+    title = "Respondents Feeling Down",
+    x = "Cycle",
+    y = "Mean Difficulty Score"
+  ) +
+  theme_minimal(base_size = 14)+
+  theme(legend.position = "bottom")
+
+```
+
+## ENERGY plot 
+```{r}
+hps_panel_plot <- hps_panel_energy %>%
+group_by(WEEK, sports_gambling_legal) %>%
+  summarise(
+    mean_value = mean(ENERGY, na.rm = TRUE),
+  .groups = 'drop'
+)
+  
+ggplot(hps_panel_plot, aes(x = WEEK, y = mean_value, linetype = factor(sports_gambling_legal)), group = factor(sports_gambling_legal))+
+geom_line(linewidth = 1, color = "black") + 
+  
+scale_linetype_manual(
+    name = "Treatment Status",
+    values = c("0" = "dotted", "1" = "solid"), 
+    labels = c("0" = "Control States", "1" = "Legalized States") 
+  ) +
+  
+  labs(
+    title = "Difficulty of Paying Energy Bill",
+    x = "Cycle",
+    y = "Mean Difficulty Score"
+  ) +
+  theme_minimal(base_size = 14)+
+  theme(legend.position = "bottom")
+```
+
+## ANYWORK plot 
+```{r}
+hps_panel_plot <- hps_panel %>%
+group_by(WEEK, sports_gambling_legal) %>%
+  summarise(
+    mean_value = mean(ANYWORK, na.rm = TRUE),
+  .groups = 'drop'
+)
+  
+ggplot(hps_panel_plot, aes(x = WEEK, y = mean_value, color = factor(sports_gambling_legal)), group = factor(sports_gambling_legal))+
+geom_line(linewidth = 1) + 
+  geom_point()+
+  
+scale_color_manual(
+    name = "Treatment Status",
+    values = c("0" = "#008080", "1" = "#BA55D3"), 
+    labels = c("0" = "Control States", "1" = "Legalized States") 
+  ) +
+  
+  labs(
+    title = "Mean ANYWORK Status",
+    x = "Week",
+    y = ""
+  ) +
+  theme_minimal(base_size = 14)
+```
+
+## Plotting age distribution
+```{r}
+ggplot(hps_panel, aes(x = TBIRTH_YEAR)) +
+  # Use geom_histogram(). The 'bins' or 'binwidth' argument controls the level of detail.
+  geom_histogram(
+    binwidth = 1, # Number of bins
+    fill = "black",
+    color = "white" # Border color
+  ) +
+  labs(
+    title = "Age Distribution",
+    x = "Year of Birth",
+    y = "Frequency"
+  ) +
+  theme_bw()
+```
+
+## Plotting income distribution
+```{r}
+ggplot(hps_panel, aes(x = INCOME)) +
+  # Use geom_histogram(). The 'bins' or 'binwidth' argument controls the level of detail.
+  geom_histogram(
+    binwidth = 1, # Number of bins
+    fill = "black",
+    color = "white" # Border color
+  ) +
+  labs(
+    title = "Income Distribution",
+    x = "Income Bracket",
+    y = "Frequency"
+  ) +
+  theme_bw()
+```
+
+## Education distribution
+```{r}
+ggplot(hps_panel, aes(x = EEDUC)) +
+  # Use geom_histogram(). The 'bins' or 'binwidth' argument controls the level of detail.
+  geom_histogram(
+    binwidth = 1, # Number of bins
+    fill = "black",
+    color = "white" # Border color
+  ) +
+  labs(
+    title = "Education Distribution",
+    x = "Education Status",
+    y = "Frequency"
+  ) +
+  theme_bw()
+```
+
+## Race Distribution
+```{r}
+ggplot(hps_panel, aes(x = RRACE)) +
+  # Use geom_histogram(). The 'bins' or 'binwidth' argument controls the level of detail.
+  geom_histogram(
+    binwidth = 1, # Number of bins
+    fill = "black",
+    color = "white" # Border color
+  ) +
+  labs(
+    title = "Race Distribution",
+    x = "Race",
+    y = "Frequency"
+  ) +
+  theme_bw()
+```
+
+## Workloss over time
+```{r}
+hps_panel_plot <- hps_panel %>%
+group_by(WEEK, sports_gambling_legal) %>%
+  summarise(
+    mean_value = mean(workloss, na.rm = TRUE),
+  .groups = 'drop'
+)
+  
+ggplot(hps_panel_plot, aes(x = WEEK, y = mean_value, color = factor(sports_gambling_legal)), group = factor(sports_gambling_legal))+
+geom_line(linewidth = 1) + 
+  
+scale_color_manual(
+    name = "Treatment Status",
+    values = c("0" = "lightblue", "1" = "pink"), 
+    labels = c("0" = "Control States", "1" = "Legalized States") 
+  ) +
+  
+  labs(
+    title = "Mean Workloss Value Over Time",
+    x = "Week",
+    y = "Mean workloss Score"
+  ) +
+  theme_minimal(base_size = 14)
+```
+
+```{r}
+hps_panel_plot <- hps_panel %>%
+group_by(WEEK, sports_gambling_legal) %>%
+  summarise(
+    mean_value = mean(MORTCONF, na.rm = TRUE),
+  .groups = 'drop'
+)
+  
+ggplot(data = filter(hps_panel_plot, WEEK<=45), aes(x = WEEK, y = mean_value, color = factor(sports_gambling_legal)), group = factor(sports_gambling_legal))+
+geom_line(linewidth = 1) + 
+  
+scale_color_manual(
+    name = "Treatment Status",
+    values = c("0" = "lightblue", "1" = "pink"), 
+    labels = c("0" = "Control States", "1" = "Legalized States") 
+  ) +
+  
+  labs(
+    title = "Difficulty of Paying Mortgage",
+    x = "WEEK",
+    y = "Mean Difficulty Score"
+  ) +
+  theme_minimal(base_size = 14)
+```
+
+
+## Marital status distribution
+```{r}
+ggplot(hps_panel, aes(x = MS)) +
+  # Use geom_histogram(). The 'bins' or 'binwidth' argument controls the level of detail.
+  geom_histogram(
+    binwidth = 1, # Number of bins
+    fill = "black",
+    color = "white" # Border color
+  ) +
+  labs(
+    title = "Marital Distribution",
+    x = "Marital Status",
+    y = "Frequency"
+  ) +
+  theme_classic()
+```
+
+
+## Anxious Stacked DiD 
+```{r Anxious Stacked DiD}
+
+# Step 2: Identify treatment cohorts (by month)
+cohorts <- hps_panel %>%
+  filter(!is.na(online_legal)) %>%
+  distinct(online_legal) %>%
+  pull(online_legal)
+
+# Step 3: Create stacked dataset
+stacked_data_anxious <- lapply(cohorts, function(cohort) {
+  
+  # Define window (e.g., 12 months before/after treatment)
+  window_start <- cohort %m-% weeks(26)
+  window_end <- cohort %m+% weeks(52)
+  
+  subset <- hps_panel %>%
+    filter(date_collect >= window_start & date_collect <= window_end) %>%
+    # Keep: this cohort + never-treated states
+    filter(is.na(online_legal) | online_legal == cohort) %>%
+    mutate(
+      cohort_date = cohort,
+      # Calculate months relative to treatment
+      rel_week = interval(cohort, date_collect) %/% weeks(4),
+      treated = ifelse(!is.na(online_legal) & date_collect >= online_legal, 1, 0)
+    )
+  
+  return(subset)
+}) %>% bind_rows()
+
+# Step 4: Run stacked DiD regression
+# Simple DiD specification
+twfe_anx_nocont <- feols(
+  ANXIOUS ~ post_online|  EST_ST^cohort_date + date_collect^cohort_date,
+  data = stacked_data_anxious,
+  cluster = ~EST_ST
+)
+
+summary(twfe_anx_nocont)
+
+twfe_anx_wcont <- feols(
+  ANXIOUS ~ post_online + AGE|  EST_ST^cohort_date + date_collect^cohort_date + gender,
+  data = stacked_data_anxious,
+  cluster = ~EST_ST
+)
+
+summary(twfe_anx_wcont)
+
+# Event study specification (shows pre-trends and dynamic effects)
+anx_es_nocont <- feols(
+  ANXIOUS ~ i(rel_week, ref = -1)| EST_ST + date_collect,
+  data = stacked_data_anxious,
+  cluster = ~EST_ST
+)
+
+# Plot event study
+iplot(anx_es_nocont, 
+      main = "Event Study: Stacked Difference-in-Differences",
+      xlab = "Months relative to treatment",
+      ylab = "Effect on ability to meet expenses (no controls)")
+
+
+
+anx_es_wcont <- feols(
+  ANXIOUS ~ i(rel_week, ref = -1) + AGE| EST_ST + date_collect + gender,
+  data = stacked_data_anxious,
+  cluster = ~EST_ST
+)
+
+# Plot event study
+iplot(anx_es_wcont, 
+      main = "Event Study: Stacked Difference-in-Differences",
+      xlab = "Months relative to treatment",
+      ylab = "Effect on ability to meet expenses (with controls)")
+
+```
+
+## DOWN stacked did
+```{r}
+
+# Step 2: Identify treatment cohorts (by month)
+cohorts <- hps_panel %>%
+  filter(!is.na(online_legal)) %>%
+  distinct(online_legal) %>%
+  pull(online_legal)
+
+# Step 3: Create stacked dataset
+stacked_data_down <- lapply(cohorts, function(cohort) {
+  
+  # Define window (e.g., 12 months before/after treatment)
+  window_start <- cohort %m-% weeks(20)
+  window_end <- cohort %m+% weeks(52)
+  
+  subset <- hps_panel %>%
+    filter(date_collect >= window_start & date_collect <= window_end) %>%
+    # Keep: this cohort + never-treated states
+    filter(is.na(online_legal) | online_legal == cohort) %>%
+    mutate(
+      cohort_date = cohort,
+      # Calculate months relative to treatment
+      rel_week = interval(cohort, date_collect) %/% weeks(4),
+      treated = ifelse(!is.na(online_legal) & date_collect >= online_legal, 1, 0)
+    )
+  
+  return(subset)
+}) %>% bind_rows()
+
+# Step 4: Run stacked DiD regression
+# Simple DiD specification
+twfe_down_nocont <- feols(
+  DOWN ~ post_online|  EST_ST^cohort_date + date_collect^cohort_date,
+  data = stacked_data_down,
+  cluster = ~EST_ST
+)
+
+summary(twfe_down_nocont)
+
+twfe_down_wcont <- feols(
+  DOWN ~ post_online + AGE|  EST_ST^cohort_date + date_collect^cohort_date + gender,
+  data = stacked_data_down,
+  cluster = ~EST_ST
+)
+
+summary(twfe_down_wcont)
+
+# Event study specification (shows pre-trends and dynamic effects)
+down_es_nocont <- feols(
+  DOWN ~ i(rel_week, ref = -1)| EST_ST + date_collect,
+  data = stacked_data_down,
+  cluster = ~EST_ST
+)
+
+# Plot event study
+iplot(down_es_nocont, 
+      main = "Event Study: Stacked Difference-in-Differences",
+      xlab = "Months relative to treatment",
+      ylab = "Effect on ability to meet expenses (no controls)")
+
+
+
+down_es_wcont <- feols(
+  DOWN ~ i(rel_week, ref = -1) + AGE| EST_ST + date_collect + gender,
+  data = stacked_data_down,
+  cluster = ~EST_ST
+)
+
+# Plot event study
+iplot(down_es_wcont, 
+      main = "Event Study: Stacked Difference-in-Differences",
+      xlab = "Months relative to treatment",
+      ylab = "Effect on ability to meet expenses (with controls)")
+```
+
+
+
+
+## Expense Stacked DiD 
+```{r Expense Difficulty Stacked DiD}
+
+# Step 2: Identify treatment cohorts (by month)
+cohorts <- hps_panel_expns_dif %>%
+  filter(!is.na(online_legal)) %>%
+  distinct(online_legal) %>%
+  pull(online_legal)
+
+# Step 3: Create stacked dataset
+stacked_data <- lapply(cohorts, function(cohort) {
+  
+  # Define window (e.g., 12 months before/after treatment)
+  window_start <- cohort %m-% weeks(20)
+  window_end <- cohort %m+% weeks(52)
+  
+  subset <- hps_panel_expns_dif %>%
+    filter(date_collect >= window_start & date_collect <= window_end) %>%
+    # Keep: this cohort + never-treated states
+    filter(is.na(online_legal) | online_legal == cohort) %>%
+    mutate(
+      cohort_date = cohort,
+      # Calculate months relative to treatment
+      rel_week = interval(cohort, date_collect) %/% weeks(4),
+      treated = ifelse(!is.na(online_legal) & date_collect >= online_legal, 1, 0)
+    )
+  
+  return(subset)
+}) %>% bind_rows()
+
+# Step 4: Run stacked DiD regression
+# Simple DiD specification
+twfe_expns_nocont <- feols(
+  EXPNS_DIF ~ post_online|  EST_ST^cohort_date + date_collect^cohort_date,
+  data = stacked_data,
+  cluster = ~EST_ST
+)
+
+summary(twfe_expns_nocont)
+
+twfe_expns_wcont <- feols(
+  EXPNS_DIF ~ post_online + AGE|  EST_ST^cohort_date + date_collect^cohort_date + gender,
+  data = stacked_data,
+  cluster = ~EST_ST
+)
+
+summary(twfe_expns_wcont)
+
+# Event study specification (shows pre-trends and dynamic effects)
+expns_es_nocont <- feols(
+  EXPNS_DIF ~ i(rel_week, ref = -1)| EST_ST + date_collect,
+  data = stacked_data,
+  cluster = ~EST_ST
+)
+
+# Plot event study
+iplot(expns_es_nocont, 
+      main = "Event Study: Stacked Difference-in-Differences",
+      xlab = "Months relative to treatment",
+      ylab = "Effect on ability to meet expenses (no controls)")
+
+
+
+expns_es_wcont <- feols(
+  EXPNS_DIF ~ i(rel_week, ref = -1) + AGE| EST_ST + date_collect + gender,
+  data = stacked_data,
+  cluster = ~EST_ST
+)
+
+# Plot event study
+iplot(expns_es_wcont, 
+      main = "Event Study: Stacked Difference-in-Differences",
+      xlab = "Months relative to treatment",
+      ylab = "Effect on ability to meet expenses (with controls)")
+
+```
+
+## Energy stacked DiD
+```{r ENERGY Stacked DiD}
+
+# Step 2: Identify treatment cohorts (by month)
+cohorts <- hps_panel_energy %>%
+  filter(!is.na(online_legal)) %>%
+  distinct(online_legal) %>%
+  pull(online_legal)
+
+# Step 3: Create stacked dataset
+stacked_data_energy <- lapply(cohorts, function(cohort) {
+  
+  # Define window (e.g., 12 months before/after treatment)
+  window_start <- cohort %m-% weeks(20)
+  window_end <- cohort %m+% weeks(52)
+  
+  subset <- hps_panel_energy %>%
+    filter(date_collect >= window_start & date_collect <= window_end) %>%
+    # Keep: this cohort + never-treated states
+    filter(is.na(online_legal) | online_legal == cohort) %>%
+    mutate(
+      cohort_date = cohort,
+      # Calculate months relative to treatment
+      rel_month = interval(cohort, date_collect) %/% weeks(4),
+      treated = ifelse(!is.na(online_legal) & date_collect >= online_legal, 1, 0)
+    )
+  
+  return(subset)
+}) %>% bind_rows()
+
+# Step 4: Run stacked DiD regression
+# Simple DiD specification
+twfe_energy_nocont <- feols(
+  ENERGY ~ post_online| EST_ST^cohort_date + date_collect^cohort_date,
+  data = stacked_data_energy,
+  cluster = ~EST_ST
+)
+
+summary(twfe_energy_nocont)
+
+twfe_energy_wcont <- feols(
+  ENERGY ~ post_online + AGE| EST_ST^cohort_date + date_collect^cohort_date + gender,
+  data = stacked_data_energy,
+  cluster = ~EST_ST
+)
+
+summary(twfe_energy_wcont)
+
+# Event study specification (shows pre-trends and dynamic effects)
+energy_es_wcont <- feols(
+  ENERGY ~ i(rel_month, ref = -1) + AGE | EST_ST + date_collect + gender,
+  data = stacked_data_energy,
+  cluster = ~EST_ST
+)
+
+# Plot event study
+iplot(energy_es_wcont, 
+      main = "Event Study: Stacked DiD",
+      xlab = "Months relative to treatment",
+      ylab = "Effect on outcome")
+
+energy_es_nocont <- feols(
+  ENERGY ~ i(rel_month, ref = -1) | EST_ST + date_collect,
+  data = stacked_data_energy,
+  cluster = ~EST_ST
+)
+
+# Plot event study
+iplot(energy_es_nocont, 
+      main = "Event Study: Stacked DiD",
+      xlab = "Months relative to treatment",
+      ylab = "Effect on outcome")
+
+```
+
+## Expense Difficulty Latex output
+```{r}
+etable(twfe_expns_nocont, twfe_expns_wcont,twfe_energy_nocont, twfe_energy_wcont,twfe_anx_nocont,twfe_anx_wcont,
+       tex = TRUE,
+       file = "energy_expns_regression.tex",
+       title = "Event Study Results",
+       headers = c("Expense Difficulty", "Expense Difficulty","Energy Bill Difficulty", "Energy Bill Difficulty","Anxiety","Anxiety"),
+       dict = c("post_online" = "Post Online",
+                "AGE" = "Age"),
+       digits = 3)
+```
+
+## Energy bill difficulty latex output
+```{r}
+etable(twfe_energy_nocont, twfe_energy_wcont,
+       tex = TRUE,
+       file = "energy_results.tex",
+       title = "Event Study Results",
+       headers = c("Energy Bill Difficulty", "Energy Bill Difficulty"),
+       dict = c("post_online" = "Post Online",
+                "AGE" = "Age"),
+       digits = 3)
+```
+
