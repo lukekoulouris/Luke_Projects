@@ -1,0 +1,347 @@
+---
+title: "02_data_clean"
+author: "Luke Koulouris"
+date: "2025-09-24"
+output:
+  html_document: default
+  pdf_document: default
+---
+
+```{r}
+rm(list = ls(all.names = TRUE))
+```
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+library(ggplot2)
+library(dplyr)
+library(tidyverse)
+library(tibble)
+library(haven)
+library(readxl)
+library(readr)
+```
+
+
+```{r}
+knitr::opts_chunk$set(echo = TRUE,
+  root.dir = "C:/Users/lukek/Dropbox/Thesis/Data")
+load("C:/Users/lukek/Dropbox/Thesis/Data/hps_combined_all.RData")
+```
+
+Specifying which variables to keep for analysis. Variables are chosen based on things related to household/individual security (confidence in ability to pay mortgage, levels of food sufficiency, anxiety, etc)
+
+```{r}
+hps_vars_to_keep <- combined_df %>%
+  select(c(SCRAM, EGENID_BIRTH, WEEK, EST_ST, EST_MSA, TBIRTH_YEAR, EGENDER, RRACE, EEDUC, MS, THHLD_NUMKID, CTC_YN, THHLD_NUMADLT,WRKLOSS,WRKLOSSRV, EXPCTLOSS, ANYWORK, KINDWORK, CURFOODSUF, PRIFOODSUF, TSPNDPRPD, FOODCONF, HLTHSTATUS, ANXIOUS, WORRY, INTEREST, DOWN, NOTGET, TENURE, MORTLMTH, MORTCONF, INCOME,  RENTCUR, MORTCUR, MH_NOTGET, MH_SVCS, DELAY, EXPNS_DIF, SPNDSRC3, NOTGET, EVICT, FORCLOSE, EIPSPND13, PRESCRIPT, ENERGY, REGION))
+```
+
+
+Loading legalization dates and adding interaction for states that have both online and in-person sport gambling
+```{r}
+gambling_laws <- read_dta("C:/Users/lukek/Downloads/gambling_laws.dta")
+
+names(gambling_laws)[names(gambling_laws) == "state"] <- "EST_ST"
+```
+
+Creating row for district of columbia in gambling_laws df
+```{r}
+gambling_laws <- gambling_laws %>%
+  add_row(state_name = "District of Columbia", EST_ST = 11, abbreviation = "DC", sports_gambling_legal = 1, year_legalized = 2019, in_person = 1, year_in_p = 2020, month_in_p = 8, online = 1, year_online = 2020, month_online = 5, age = 21)
+  
+```
+
+
+Merging legalization dates and hps data
+```{r}
+hps_and_leg_dates <- merge(gambling_laws,hps_vars_to_keep, "EST_ST")
+```
+
+Dropping states whose legalization date was before 2020
+```{r}
+hps_panel <- hps_and_leg_dates%>%
+  filter(is.na(year_legalized) | year_legalized >= 2020)
+```
+
+Adding the corresponding month to each week in which the data was collected
+```{r}
+hps_panel <- hps_panel %>%
+  mutate(month_collect = ifelse(WEEK == 1 , "April",
+                                ifelse(WEEK == 2, "May",
+                                ifelse(WEEK == 3, "May",
+                                ifelse(WEEK == 4, "May",
+                                ifelse(WEEK == 5, "May",
+                                ifelse(WEEK == 6, "June",
+                                ifelse(WEEK == 7, "June",
+                                ifelse(WEEK == 8, "June",
+                                ifelse(WEEK == 9, "June",
+                                ifelse(WEEK == 10, "July",
+                                ifelse(WEEK == 11, "July",
+                                ifelse(WEEK == 12, "July",
+                                ifelse(WEEK == 13, "August",
+                                ifelse(WEEK == 14, "September",
+                                ifelse(WEEK == 15, "September",
+                                ifelse(WEEK == 16, "October",
+                                ifelse(WEEK == 17, "October",
+                                ifelse(WEEK == 18, "November",
+                                ifelse(WEEK == 19, "November",
+                                ifelse(WEEK == 20, "November",
+                                ifelse(WEEK == 21, "December",
+                                ifelse(WEEK == 22,"January",
+                                ifelse(WEEK == 23, "January",
+                                ifelse(WEEK == 24, "February","")))))))))))))))))))))))))
+```
+
+
+```{r}
+                                
+hps_panel <- hps_panel %>%
+mutate(month_collect2 = ifelse(WEEK == 25, "February",
+                                ifelse(WEEK == 26, "March",
+                                ifelse(WEEK == 27, "March",
+                                ifelse(WEEK == 28, "April",
+                                ifelse(WEEK == 29, "May",
+                                ifelse(WEEK == 30, "May",
+                                ifelse(WEEK == 31, "June",
+                                ifelse(WEEK == 32, "June",
+                                ifelse(WEEK == 33, "June",
+                                ifelse(WEEK == 34, "July",
+                                ifelse(WEEK == 35, "August",
+                                ifelse(WEEK == 36, "August",
+                                ifelse(WEEK == 37, "September",
+                                ifelse(WEEK == 38, "September",
+                                ifelse(WEEK == 39, "October",
+                                ifelse(WEEK == 40, "December",
+                                ifelse(WEEK == 41, "January",
+                                ifelse(WEEK == 42, "February",
+                                ifelse(WEEK == 43, "March",
+                                ifelse(WEEK == 44, "April",
+                                ifelse(WEEK == 45, "May",
+                                ifelse(WEEK == 46, "June",
+                                ifelse(WEEK == 47, "July",
+                                ifelse(WEEK == 48, "August",
+                                ifelse(WEEK == 49, "September",
+                                ifelse(WEEK == 50, "October",month_collect)))))))))))))))))))))))))))
+```
+
+
+```{r}
+ hps_panel <- hps_panel %>%
+mutate(month_collect3 = ifelse(WEEK == 51, "November",
+                                ifelse(WEEK == 52, "December",
+                                ifelse(WEEK == 53, "January",
+                                ifelse(WEEK == 54, "February",
+                                ifelse(WEEK == 55, "March",
+                                ifelse(WEEK == 56, "April",
+                                ifelse(WEEK == 57, "May",
+                                ifelse(WEEK == 58, "June",
+                                ifelse(WEEK == 59, "July",
+                                ifelse(WEEK == 60, "August",
+                                ifelse(WEEK == 61, "August",
+                                ifelse(WEEK == 62, "September",
+                                ifelse(WEEK == 63, "October",
+                                ifelse(WEEK == 64, "January",
+                                ifelse(WEEK == 65, "February",
+                                ifelse(WEEK == 66, "March",
+                                ifelse(WEEK == 67, "April",
+                                ifelse(WEEK == 68, "May",
+                                ifelse(WEEK == 69, "June",
+                                ifelse(WEEK == 70, "July",
+                                ifelse(WEEK == 71, "August",
+                                ifelse(WEEK == 72, "September",month_collect2)))))))))))))))))))))))
+```
+
+Removing month_collect columns 1 and 2
+```{r}
+hps_panel <- hps_panel %>%
+  select(-c(month_collect,month_collect2))
+```
+
+Creating year variable for year of collection
+```{r}
+hps_panel <- hps_panel %>%
+  mutate(year_collect = ifelse(WEEK <= 21, 2020,
+                ifelse(WEEK > 21 & WEEK <= 40, 2021,
+                ifelse(WEEK > 40 & WEEK <= 52, 2022,
+                ifelse(WEEK > 52 & WEEK <= 64, 2023,
+                ifelse(WEEK > 64, 2024, 0))))))
+```
+
+```{r}
+year_collect <-as.numeric(hps_panel$year_collect)
+
+hps_panel <- hps_panel %>%
+  mutate(month_num =  ifelse(month_collect3 == "January", 1,
+                      ifelse(month_collect3 == "February", 2,
+                      ifelse(month_collect3 == "March", 3,
+                      ifelse(month_collect3 == "April", 4,
+                      ifelse(month_collect3 == "May", 5,
+                      ifelse(month_collect3 == "June", 6,
+                      ifelse(month_collect3 == "July", 7,
+                      ifelse(month_collect3 == "August", 8,
+                      ifelse(month_collect3 == "September", 9,
+                      ifelse(month_collect3 == "October", 10,
+                      ifelse(month_collect3 == "November", 11,
+                      ifelse(month_collect3 == "December", 12,"")))))))))))))
+```
+
+
+Combining the month_collect column and year_collect columns into one
+```{r}
+hps_panel<- hps_panel %>%
+  mutate(
+    date_collect = make_date(
+      year = year_collect,
+      month = month_num
+    )
+  )
+```
+
+Creating dates for when betting became legal online and in-person
+```{r}
+hps_panel<- hps_panel %>%
+  mutate(
+    in_person_legal = make_date(
+      year = year_in_p,
+      month = month_in_p)) %>%
+  mutate(
+    online_legal = make_date(
+      year = year_online,
+      month = month_online)
+  )
+```
+
+Creating post variable and replacing NA values (control states) with zeros
+```{r}
+hps_panel <- hps_panel %>%
+  mutate(post_online = ifelse(date_collect >= online_legal,1,0)) %>%
+  mutate(post_inperson = ifelse(date_collect >= in_person_legal,1,0)) %>%
+  mutate(post_inperson = replace_na(post_inperson,0))%>%
+  mutate(post_online = replace_na(post_online,0))
+```
+
+Creating treat-post variable
+```{r}
+hps_panel <- hps_panel %>%
+  mutate(treat_post_inperson = in_person*post_inperson)%>%
+  mutate(treat_post_online = online*post_online)
+```
+
+Plotting share of treated states over time
+```{r}
+hps_panel_treatpost_overtime <- hps_panel %>%
+  group_by(date_collect)%>%
+  summarise(mean_post_online = mean(treat_post_online))
+
+ggplot(hps_panel_treatpost_overtime, aes(x = date_collect, y = mean_post_online))+
+  geom_line()+
+  theme_bw()
+```
+
+Combining gender variables
+```{r}
+hps_panel <- hps_panel %>%
+  mutate(gender = ifelse(is.na(EGENDER) == FALSE, EGENDER, EGENID_BIRTH))
+```
+
+Combining WRKLOSS variables
+```{r}
+hps_panel <- hps_panel %>%
+  mutate(workloss = ifelse(is.na(WRKLOSS) == FALSE, WRKLOSS, WRKLOSSRV))
+```
+
+
+Recode WRKLOSS variable from no = 2 to no = 0
+```{r}
+hps_panel <- hps_panel %>%
+  mutate(workloss = case_when(
+    workloss %in% c(-88, -99) ~ NA_real_,
+    workloss == 2 ~ 0,
+    workloss == 1 ~ 1,
+    TRUE ~ workloss
+  ))
+```
+
+
+Recode ANYWORK variable from no = 2 to no = 0
+```{r}
+hps_panel <- hps_panel %>%
+  mutate(ANYWORK = case_when(
+    ANYWORK %in% c(-88, -99) ~ NA_real_,
+    ANYWORK == 2 ~ 0,
+    ANYWORK == 1 ~ 1,
+    TRUE ~ ANYWORK
+  ))
+```
+
+
+Removing -88 and -99 values from MS
+```{r}
+hps_panel <- hps_panel %>%
+  mutate(MS = case_when(
+    MS %in% c(-88, -99) ~ NA_real_,
+    TRUE ~ MS
+  ))
+```
+
+
+Recoding EEGENDER variable from female = 2 to female = 0
+```{r}
+hps_panel <- hps_panel %>%
+  mutate(gender = case_when(
+    gender == 2 ~ 0,
+    gender == 1 ~ 1,
+    TRUE ~ gender
+  ))
+```
+
+Removing -88, and -99 values for income
+```{r}
+hps_panel <- hps_panel %>%
+  mutate(INCOME = case_when(
+    INCOME %in% c(-88, -99) ~ NA_real_,
+    TRUE ~ INCOME
+  ))
+```
+
+
+Saving cleaned data
+```{r}
+setwd("C:/Users/lukek/Dropbox/Thesis/Data")
+save(hps_panel, file = "hps_panel.RData")
+```
+
+
+# Remove all Stata attributes
+betting_dates_clean <- as.data.frame(lapply(gambling_laws, function(x) {
+  attributes(x) <- NULL
+  return(x)
+}))
+
+# Now convert to character
+betting_dates_char <- as.data.frame(lapply(betting_dates_clean, as.character), 
+                                    stringsAsFactors = FALSE)
+
+# Replace NA with empty strings
+betting_dates_char[is.na(betting_dates_char)] <- ""
+
+library(kableExtra)
+
+
+betting_dates_combined <- gambling_laws %>%
+select(state_name, sports_gambling_legal, year_legalized, in_person, year_in_p, month_in_p,online, year_online, month_online) %>%
+  mutate(retail_date = ifelse(!is.na(year_in_p), 
+                              paste(month_in_p, year_in_p, sep = "/"), 
+                              ""),
+         online_date = ifelse(!is.na(year_online), 
+                             paste(month_online, year_online, sep = "/"), 
+                             "")) %>%
+  select(state_name, retail_date, online_date)
+
+betting_dates_combined %>%
+  select(state_name, retail_date,online_date) %>%
+  kable(format = "latex", booktabs = TRUE, longtable = TRUE,
+        caption = "Sports Betting Legalization Dates by State") %>%
+  kable_styling(latex_options = c("repeat_header"), 
+                font_size = 10)
